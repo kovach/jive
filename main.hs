@@ -85,6 +85,7 @@ lex = words . concatMap fix
 parse :: String -> Word
 parse s@(x : _) | isUpper x = WVar s
 parse s@(x : _) = WPred s
+parse [] = error "empty word"
 
 sch :: Schema
 sch = fromJust . flip lookup
