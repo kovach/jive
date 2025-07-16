@@ -85,3 +85,8 @@ cat X cat Y sees X Y Z with Z W telescope W
 ```
 
 Note that a pair of unary predicates (e.g. `cat telescope`, `telescope cat`) both unwind into the same atoms, just in a different order, so they have the same meaning under this algorithm.
+This property is necessary for the validity of re-ordering.
+However, `on X Y` and `on Y X` are still different queries.
+The algorithm has an issue: `on X Y`, `X on Y` denote the same thing, but `X Y on` is instead equivalent to `on Y X`.
+It also allows for various strange expressions like `on on cat cat = on cat Y, on Y cat` ("a cat is on something that is on a cat").
+These two problem sentences share the property that they require more than one entry of stack space for parsing; single-stack sentences are more local.
