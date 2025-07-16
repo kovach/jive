@@ -2,6 +2,8 @@
 The project implements a parsing algorithm for a neat query syntax.
 This readme describes how to arrive at it by taking a series of small steps starting from traditional logic program syntax.
 
+`main2.hs` has the reference implementation.
+
 # Prolog Syntax
 I want to know about all the cats that are on shelves:
 

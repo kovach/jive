@@ -47,7 +47,6 @@ type Stack a = [a]
 -- Parse state. left side: progress, right side: input sentence.
 type St = (Stack Temp, Stack Temp)
 
--- previous partial atom, new word -> new partial atom (and `tell` any completed atoms)
 step :: St -> M St
 
 -- If top of input is nullary, yield the finished atom
@@ -123,24 +122,32 @@ sch = fromJust . flip lookup
   , ("cat", 1), ("shelf", 1), ("telescope", 1)
   ]
 
-eg1 = run2 sch "cat on shelf"
-eg1' = run2 sch "on cat shelf"
-eg2 = run2 sch "cat on shelf shelf on cat"
-eg3 = run2 sch "cat sees cat with telescope" -- surprising?
-eg5 = run2 sch "cat cat cat cat"
-eg6 = run2 sch "cat X X on Y"
-eg7 = run2 sch "X cat on X Y"
+test = run2 sch
 
-bad1 = run2 sch "cat on" -- bad, incomplete
-bad2 = run2 sch "on on" -- bad, incomplete
+eg1 = "cat on shelf"
+eg1' = "on cat shelf"
+eg2 = "cat on shelf shelf on cat"
+eg3 = "cat sees cat with telescope" -- surprising?
+eg5 = "cat cat cat cat"
+eg6 = "cat X X on Y"
+eg7 = "X cat on X Y"
+
+bad1 = "cat on" -- bad, incomplete
+bad2 = "on on" -- bad, incomplete
 
 -- confusing examples
-conf1 = run2 sch "on on cat cat" -- a cat is on something that is on a cat
-conf2 = run2 sch "X Y on" -- Y is on X
+conf1 = "on on cat cat"  -- a cat is on something that is on a cat
+conf1' = "on cat on cat" -- a cat is on something that is on a cat
+conf2 = "X Y on" -- Y is on X
 
 tests = [eg1, eg1', eg2, eg3, eg5, eg6, eg7, conf1, conf2]
 
-chk = mapM_ (\t -> putStrLn "" >> mapM_ print t) tests
+ptest t =
+  putStrLn $ show t
+  <> ":\n"
+  <> unlines (map show (test t))
+
+chk = mapM_ ptest tests
 
 {-
 
