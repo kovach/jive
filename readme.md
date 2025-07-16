@@ -23,6 +23,8 @@ cat X sees X Y cat Y
 cat X  X sees Y  cat Y
 ```
 
+(distinguish predicates from arguments using case)
+
 # Allow unary predicates in place of variables
 
 ```
