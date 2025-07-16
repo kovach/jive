@@ -65,9 +65,9 @@ How: when you encounter a new word of arity > 1, if the top stack element is una
 apply [**join step**] instead of [**push step**].
 
 ```
-telescope/1
-with/2
-sees/3
+# telescope/1
+# with/2
+# sees/3
 
 cat sees cat with telescope
   cat
