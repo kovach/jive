@@ -75,15 +75,16 @@ load s (WPred p) = TempAtom p [] (s p)
 run2 :: Schema -> String -> [Atom]
 run2 s = run1 s . map parse . lex
 
-parse :: String -> Word
-parse s@(x : _) | isUpper x = WVar s
-parse s@(x : _) = WPred s
-
 lex :: String -> [String]
 lex = words . concatMap fix
   where
     fix '(' = " ( "
+    fix ')' = " ) "
     fix c = [c]
+
+parse :: String -> Word
+parse s@(x : _) | isUpper x = WVar s
+parse s@(x : _) = WPred s
 
 sch :: Schema
 sch = fromJust . flip lookup
@@ -103,21 +104,10 @@ eg7 = run2 sch "X cat on X Y"
 bad1 = run2 sch "cat on" -- bad, incomplete
 bad2 = run2 sch "on on" -- bad, cannot combine two arity-2 words
 
-{- Notes
-  Can think of this as an incremental rewriting algorithm:
-    cat sees cat with telescope
-      cat
-      cat sees
-        cat X sees X
-      cat X sees X cat
-        cat X sees X Y cat Y
-      cat X sees X Y cat Y with
-        cat X sees X Y Z cat Y with Z
-      cat X sees X Y Z cat Y with Z telescope
-        cat X sees X Y Z cat Y with Z W telescope W
-    cat X sees X Y Z cat Y with Z W telescope W
+{-
+# Notes
 
--- todo:
-   - parens
-   - articles
+# Todo
+  - parens
+  - articles
 -}

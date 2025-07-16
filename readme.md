@@ -1,46 +1,56 @@
+# Intro
+The project implements a parsing algorithm for a neat query syntax.
+This readme describes how to arrive at it by taking a series of small steps starting from traditional logic program syntax.
+
 # Prolog Syntax
+I want to know about all the cats that are on shelves:
 
 ```
-cat(X), sees(X, Y), cat(Y)
+cat(X), on(X, Y), shelf(Y)
 ```
 
 # ML-flavored Prolog Syntax
 
 ```
-cat X, sees X Y, cat Y
+cat X, on X Y, shelf Y
 ```
 
 ## Record arities, elide commas
 
 ```
-cat/1 sees/2
-cat X sees X Y cat Y
+# cat/1 shelf/1 on/2
+cat X on X Y shelf Y
 ```
+
+You could call a set of predicates and their arities a *schema*.
 
 # Allow infix predicates
 
 ```
-cat X  X sees Y  cat Y
+cat X X on Y shelf Y
 ```
 
-(distinguish predicates from arguments using case)
+How: distinguish predicates from arguments using case.
 
 # Allow unary predicates in place of variables
 
 ```
-cat sees cat
+cat on shelf
 ```
 
-Parse this by inserting variables: compare the next word and the "top of the parse stack".
-If at least one of them is unary, generate a fresh variable and bind it to both.
+How: parse this by scanning left to right and inserting variables.
+
+- Compare the next word and the "top of the parse stack".
+- If at least one of them is unary, generate a fresh variable and bind it to both.
+
 We can picture this as `p q -> p X q X`.
 
 ```
 cat
-cat sees
-  -> cat X sees X
-cat X sees X cat
-  -> cat X sees X Y cat Y
+cat on
+  -> cat X on X
+cat X on X shelf
+  -> cat X on X Y shelf Y
 ```
 
 ```
