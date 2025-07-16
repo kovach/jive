@@ -5,8 +5,8 @@ import Control.Monad.Writer (WriterT, runWriterT, tell)
 import Data.Char
 import Data.Maybe
 
-type Var = String -- "upper"
-type Pred = String -- "lower"
+type Var = String
+type Pred = String
 data Word = WVar Var | WPred Pred
 type Arity = Int
 data Term -- todo
@@ -14,7 +14,12 @@ data Term -- todo
   deriving (Eq)
 data Atom = Atom Pred [Term]
   deriving (Eq)
-data Temp = TempVar Var | TempAtom Pred [Var] Arity
+data Temp
+  -- a variable
+  = TempVar Var
+  -- a partially applied atom with `Arity` missing arguments
+  -- vars are in reverse order
+  | TempAtom Pred [Var] Arity
   deriving (Eq)
 
 pwrap x = "(" <> x <> ")"
@@ -49,28 +54,40 @@ type St = (Stack Temp, Stack Temp)
 
 step :: St -> M St
 
+-- [reduction step]
+--
 -- If top of input is nullary, yield the finished atom
 step (l, TempAtom p vs 0 : r) = finish p vs >> pure (l, r)
 
--- If top word of stack or input is var and other is atom,
---   bind the var and move to input position.
-step (TempVar v : l,  TempAtom p vs a : r) =
-  pure (l, TempAtom p (v : vs) (a - 1) : r)
-step (TempAtom p vs a : l,  TempVar v : r) =
-  pure (l, TempAtom p (v : vs) (a - 1) : r)
+-- [join step]
+--
+-- NB regarding next four cases:
+--   when we apply a TempAtom `t` to something, its arity decreases.
+--   If it becomes zero, we need to finish it.
+--   If it becomes one, we might need to join it with the next item on the stack.
+--   Either case is handled (at the next call to step) by putting `t` at the top of the right side.
 
--- If one of p, q is unary, then
---   bind it to a fresh var, finish it, and bind the other to the same var
+-- If both tops are partial atoms and at least one is unary,
+--   bind it to a fresh var, finish it, and bind the other to the same var.
 step (TempAtom p1 t1 1 : l,  TempAtom p2 t2 a2 : r) = do
   v <- fresh
   finish p1 (v : t1)
   pure (l, TempAtom p2 (v : t2) (a2 - 1) : r)
 step (x1@(TempAtom _ _ a1) : l, x2@(TempAtom p2 t2 1) : r) = pure (x2 : l, x1 : r)
 
+-- If one top is var and other is atom, bind the var.
+-- Vars behave like unary predicates.
+step (TempVar v : l,  TempAtom p vs a : r) =
+  pure (l, TempAtom p (v : vs) (a - 1) : r)
+step (TempAtom p vs a : l,  TempVar v : r) =
+  pure (l, TempAtom p (v : vs) (a - 1) : r)
+
+-- [push step]
+--
 -- Otherwise, push the next word to the stack
 step (l, w : r) = pure (w : l, r)
 
--- Done
+-- [done]
 step (s, []) = pure (s, [])
 
 run1 :: Schema -> [Word] -> [Atom]
@@ -81,6 +98,10 @@ run1 s ws = snd . fst $ flip runState 0 $ runWriterT $ do
       ([], []) -> pure ()
       _ -> error $ "bad parse. temp term remaining:\n  " <> show out'
     pure ()
+
+load :: Schema -> Word -> Temp
+load s (WVar v) = TempVar v
+load s (WPred p) = TempAtom p [] (s p)
 
 wrap :: (Eq a, Monad m) => (a -> m a) -> a -> m (Maybe a)
 wrap f x = do
@@ -96,16 +117,13 @@ iter f v = do
       r <- iter f v'
       pure (v : r)
 
-load :: Schema -> Word -> Temp
-load s (WVar v) = TempVar v
-load s (WPred p) = TempAtom p [] (s p)
-
 run2 :: Schema -> String -> [Atom]
 run2 s = run1 s . map parse . lex
 
 lex :: String -> [String]
 lex = words . concatMap fix
   where
+    -- todo
     fix '(' = " ( "
     fix ')' = " ) "
     fix c = [c]
