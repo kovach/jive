@@ -1,4 +1,4 @@
-import Prelude hiding (Word)
+import Prelude hiding (Word, lex)
 import Control.Monad (foldM)
 import Control.Monad.State
 import Control.Monad.Writer (WriterT, runWriterT, tell)
@@ -32,28 +32,29 @@ arity (TempAtom _ _ a) = a
 finish :: Pred -> [Var] -> Atom
 finish p vs = Atom p (map TermVar $ reverse vs)
 
--- previous term, new term -> prefix, new term
+-- previous partial atom, new word -> new partial atom (and `tell` any completed atoms)
 step :: Maybe Temp -> Temp -> M (Maybe Temp)
 
-step Nothing t = pure $ Just t
+-- begin a new atom (t)
+step Nothing t =
+  pure $ Just t
 
-step (Just (TempAtom p v 0)) t = tell [finish p v] >> step Nothing t
+-- handle an atom that was completed at the previous step
+step (Just (TempAtom p v 0)) t =
+  tell [finish p v] >> step Nothing t
 
+-- if current temp is Var, bind it to incoming atom
 step (Just (TempVar v)) (TempAtom p vs a) =
-  let vs' = v : vs in
-  if a > 1 then pure $ Just (TempAtom p vs' (a-1))
-           else tell [finish p vs'] >> pure Nothing
-
+  pure $ Just (TempAtom p (v : vs) (a - 1))
 step (Just a@(TempAtom _ _ _)) v@(TempVar _) = step (Just v) a
 
-step (Just (TempAtom p1 t1 a1)) (TempAtom p2 t2 a2) | a1 == 1 = do
+-- if one of p, q is unary, then
+--   p q -> p V q V
+step (Just (TempAtom p1 t1 1)) (TempAtom p2 t2 a2) = do
   v <- fresh
-  let t1' = v : t1
-  let t2' = v : t2
-  tell [finish p1 t1']
-  pure $ Just $ TempAtom p2  t2' (a2-1)
-
-step (Just x1@(TempAtom p1 t1 a1)) x2@(TempAtom p2 t2 a2) | a1 > 1 && a2 == 1 = step (Just x2) x1
+  tell [finish p1 (v : t1)]
+  pure $ Just $ TempAtom p2 (v : t2) (a2-1)
+step (Just x1@(TempAtom p1 t1 a1)) x2@(TempAtom p2 t2 1) | a1 > 1 = step (Just x2) x1
 
 -- not allowed: (var, var) or (x, y) with arity x < 1 or arity y < 1
 step a b  = error $ "bad sequence: " <> show a <> " / " <> show b -- incorrect
@@ -72,11 +73,17 @@ load s (WVar v) = TempVar v
 load s (WPred p) = TempAtom p [] (s p)
 
 run2 :: Schema -> String -> [Atom]
-run2 s = run1 s . map parse . words
+run2 s = run1 s . map parse . lex
 
 parse :: String -> Word
 parse s@(x : _) | isUpper x = WVar s
 parse s@(x : _) = WPred s
+
+lex :: String -> [String]
+lex = words . concatMap fix
+  where
+    fix '(' = " ( "
+    fix c = [c]
 
 sch :: Schema
 sch = fromJust . flip lookup
@@ -89,7 +96,28 @@ eg1 = run2 sch "cat on shelf"
 eg1' = run2 sch "on cat shelf"
 eg2 = run2 sch "cat on shelf shelf on cat"
 eg3 = run2 sch "cat sees cat with telescope" -- surprising?
-eg5 = run2 sch "cat cat"
+eg5 = run2 sch "cat cat cat cat"
+eg6 = run2 sch "cat X X on Y"
+eg7 = run2 sch "X cat on X Y"
 
 bad1 = run2 sch "cat on" -- bad
 bad2 = run2 sch "on on" -- bad
+
+{- Notes
+  Can think of this as an incremental rewriting algorithm:
+    cat sees cat with telescope
+      cat
+      cat sees
+        cat X sees X
+      cat X sees X cat
+        cat X sees X Y cat Y
+      cat X sees X Y cat Y with
+        cat X sees X Y Z cat Y with Z
+      cat X sees X Y Z cat Y with Z telescope
+        cat X sees X Y Z cat Y with Z W telescope W
+    cat X sees X Y Z cat Y with Z W telescope W
+
+-- todo:
+   - parens
+   - articles
+-}
