@@ -42,3 +42,21 @@ cat sees
 cat X sees X cat
   -> cat X sees X Y cat Y
 ```
+
+```
+telescope/1
+with/2
+sees/3
+
+cat sees cat with telescope
+  cat
+  cat sees
+    cat X sees X
+  cat X sees X cat
+    cat X sees X Y cat Y
+  cat X sees X Y cat Y with
+    cat X sees X Y Z cat Y with Z
+  cat X sees X Y Z cat Y with Z telescope
+    cat X sees X Y Z cat Y with Z W telescope W
+cat X sees X Y Z cat Y with Z W telescope W
+```

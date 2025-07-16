@@ -100,8 +100,8 @@ eg5 = run2 sch "cat cat cat cat"
 eg6 = run2 sch "cat X X on Y"
 eg7 = run2 sch "X cat on X Y"
 
-bad1 = run2 sch "cat on" -- bad
-bad2 = run2 sch "on on" -- bad
+bad1 = run2 sch "cat on" -- bad, incomplete
+bad2 = run2 sch "on on" -- bad, cannot combine two arity-2 words
 
 {- Notes
   Can think of this as an incremental rewriting algorithm:
