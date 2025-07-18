@@ -18,7 +18,9 @@ extend subst v l = (v,l) : subst
 
 toPattern (Atom p ts) = Pattern p ts
 
-unifyPattern :: Pattern -> [Tuple] -> [Binding]
+type DB = [Tuple]
+
+unifyPattern :: Pattern -> DB -> [Binding]
 unifyPattern (Pattern p ts) tuples = mapMaybe ok tuples
   where
     n = length ts
@@ -37,7 +39,6 @@ bjoin b1 b2 = foldM step b1 b2
 
 bjoins as bs = flip concatMap as (\a -> mapMaybe (bjoin a) bs)
 
-type DB = [Tuple]
 joins :: [Pattern] -> DB -> [Binding] -> [Binding]
 joins [] _ bs = bs
 joins (p : ps) db bs = joins ps db $ bjoins (unifyPattern p db) bs
@@ -58,9 +59,10 @@ parseSchema s =
   & map (\(a,b) -> (a, read b))
 
 parseDb s =
-  let (schema : tuples) = lines s
-      tuples1 = filter ((> 0) . length) tuples
-  in (parseSchema schema, map parseTuple tuples1)
+  let (s1, s2) = split '.' s in
+  let schema = parseSchema s1 in
+  let tuples1 = filter ((> 0) . length) (lines s2)
+  in (schema, map parseTuple tuples1)
 
 parseTuples = map parseTuple . lines
 

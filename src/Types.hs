@@ -12,13 +12,14 @@ data Term -- todo
   deriving (Eq)
 data Atom = Atom Pred [Term]
   deriving (Eq)
-data Word = WVar Var | WPred Pred
+data Word = WVar Var | WPred Pred | WPush | WPop
 data Temp
   -- a variable
   = TempVar Var
   -- a partially applied atom with `Arity` missing arguments
   -- vars are in reverse order
   | TempAtom Pred [Var] Arity
+  | Push | Pop
   deriving (Eq)
 
 instance Num Literal where
@@ -36,4 +37,6 @@ instance Show Atom where
 instance Show Temp where
   show (TempVar v) = v
   show (TempAtom p vs a) = pwrap (p <> " " <> unwords (map show (reverse vs))) <> "/" <> show a
+  show Push = "push"
+  show Pop = "pop"
 

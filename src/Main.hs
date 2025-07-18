@@ -35,6 +35,11 @@ type St = (Stack Temp, Stack Temp)
 
 step :: St -> M St
 
+-- [paren handling]
+--   these steps are incidental to the algorithm
+step (l, Push : r) = pure (Push : l, r)
+step (x : Push : l, Pop : r) = pure (l, x : r)
+
 -- [reduction step]
 --
 -- If top of input is nullary, yield the finished atom
@@ -83,6 +88,8 @@ run1 s ws = snd . fst $ flip runState 0 $ runWriterT $ do
 
 load :: Schema -> Word -> Temp
 load _ (WVar v) = TempVar v
+load _ WPush = Push
+load _ WPop = Pop
 load s (WPred p) = TempAtom p [] (s p)
 
 wrap :: (Eq a, Monad m) => (a -> m a) -> a -> m (Maybe a)
@@ -100,7 +107,7 @@ iter f v = do
       pure (v : r)
 
 run2 :: Schema -> String -> [Atom]
-run2 s = run1 s . map parse . lex
+run2 s = run1 s . map tokenize . lex
 
 lex :: String -> [String]
 lex = words . concatMap fix
@@ -110,11 +117,13 @@ lex = words . concatMap fix
     fix ')' = " ) "
     fix c = [c]
 
-parse :: String -> Word
-parse s@(x : _) | isUpper x = WVar s
-parse s@('?' : _) = WVar s
-parse s@(_ : _) = WPred s
-parse [] = error "empty word"
+tokenize :: String -> Word
+tokenize "(" = WPush
+tokenize ")" = WPop
+tokenize s@(x : _) | isUpper x = WVar s
+tokenize s@('?' : _) = WVar s
+tokenize s@(_ : _) = WPred s
+tokenize [] = error "empty word"
 
 sch1 :: Schema
 sch1 = fromJust . flip lookup
@@ -173,20 +182,15 @@ chk q = do
 main = do
   putStrLn "example parses:"
   chk1
-  putStrLn "example query:"
+  putStrLn "example queries:"
   chk "cat saw X with Z"
-  mapM_ print $ unifyPattern (Pattern "f" [TermVar "X"])
-    [ Tuple "f" [LitSym "hi"]
-    , Tuple "f" [LitSym "there"]
-    , Tuple "g" [LitSym "nope"]
-    ]
+  chk "(friend X) on Y"
 
 {-
 
 # Notes
 
 # Todo
-  - parens
   - articles
 -}
 
