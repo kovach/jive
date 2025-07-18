@@ -2,7 +2,7 @@
 The project implements a parsing algorithm for a neat query syntax.
 This readme describes how to arrive at it by taking a series of small steps starting from traditional logic program syntax.
 
-`main2.hs` has the reference implementation.
+`src/Main.hs` has the reference implementation.
 
 # Prolog Syntax
 I want to know about all the cats that are on shelves:
@@ -65,6 +65,17 @@ cat on shelf
 
 How: when you encounter a new word of arity > 1, if the top stack element is unary,
 apply [**join step**] instead of [**push step**].
+
+```
+cat
+cat on
+  -> cat X on X
+cat X on X shelf
+  -> cat X on X Y shelf Y
+cat X on X Y shelf Y
+```
+
+Example with ternary word:
 
 ```
 # telescope/1

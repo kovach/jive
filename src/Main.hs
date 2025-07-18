@@ -1,48 +1,29 @@
+module Main where
+
 import Prelude hiding (Word, lex)
-import Control.Monad (foldM)
 import Control.Monad.State
 import Control.Monad.Writer (WriterT, runWriterT, tell)
 import Data.Char
 import Data.Maybe
 
-type Var = String
-type Pred = String
-data Word = WVar Var | WPred Pred
-type Arity = Int
-data Term -- todo
-  = TermVar Var
-  deriving (Eq)
-data Atom = Atom Pred [Term]
-  deriving (Eq)
-data Temp
-  -- a variable
-  = TempVar Var
-  -- a partially applied atom with `Arity` missing arguments
-  -- vars are in reverse order
-  | TempAtom Pred [Var] Arity
-  deriving (Eq)
-
-pwrap x = "(" <> x <> ")"
-instance Show Term where
-  show (TermVar v) = v
-instance Show Atom where
-  show (Atom p ts) = p <> " " <> unwords (map show ts)
-instance Show Temp where
-  show (TempVar v) = v
-  show (TempAtom p vs a) = pwrap (p <> " " <> unwords (map show (reverse vs))) <> "/" <> show a
+import Types
+import Join
 
 type Schema = Pred -> Arity
 
 type M a = WriterT [Atom] (State Int) a
 
-fresh :: M Var
-fresh = do
+fresh' :: M Var
+fresh' = do
   s <- get
   modify (+1)
   pure $ show s
 
-arity (TempVar _) = 1
-arity (TempAtom _ _ a) = a
+fresh :: String -> M Var
+fresh str = do
+  s <- get
+  modify (+1)
+  pure $ str <> show s
 
 finish :: Pred -> [Var] -> M ()
 finish p vs = tell [Atom p (map TermVar $ reverse vs)]
@@ -62,18 +43,19 @@ step (l, TempAtom p vs 0 : r) = finish p vs >> pure (l, r)
 -- [join step]
 --
 -- NB regarding next four cases:
---   when we apply a TempAtom `t` to something, its arity decreases.
+-- when we apply a TempAtom `t` to something, its arity decreases.
 --   If it becomes zero, we need to finish it.
---   If it becomes one, we might need to join it with the next item on the stack.
---   Either case is handled (at the next call to step) by putting `t` at the top of the right side.
+--   If it becomes one, we might need to join it with the next lower item on the stack.
+-- Either case is handled (at the next call to step) by putting `t` at the top of the right side.
 
 -- If both tops are partial atoms and at least one is unary,
---   bind it to a fresh var, finish it, and bind the other to the same var.
-step (TempAtom p1 t1 1 : l,  TempAtom p2 t2 a2 : r) = do
-  v <- fresh
-  finish p1 (v : t1)
-  pure (l, TempAtom p2 (v : t2) (a2 - 1) : r)
-step (x1@(TempAtom _ _ a1) : l, x2@(TempAtom p2 t2 1) : r) = pure (x2 : l, x1 : r)
+--   bind the unary one to a fresh var `v` and finish it; also bind the other to `v`.
+step (TempAtom p ps 1 : l,  TempAtom q qs arity : r) = do
+  v <- fresh'
+  finish p (v : ps)
+  pure (l, TempAtom q (v : qs) (arity - 1) : r)
+-- swap and apply the first case
+step (x1@(TempAtom _ _ _) : l, x2@(TempAtom _ _ 1) : r) = pure (x2 : l, x1 : r)
 
 -- If one top is var and other is atom, bind the var.
 -- Vars behave like unary predicates.
@@ -100,7 +82,7 @@ run1 s ws = snd . fst $ flip runState 0 $ runWriterT $ do
     pure ()
 
 load :: Schema -> Word -> Temp
-load s (WVar v) = TempVar v
+load _ (WVar v) = TempVar v
 load s (WPred p) = TempAtom p [] (s p)
 
 wrap :: (Eq a, Monad m) => (a -> m a) -> a -> m (Maybe a)
@@ -113,8 +95,8 @@ iter f v = do
   v' <- f v
   case v' of
     Nothing -> pure [v]
-    Just v' -> do
-      r <- iter f v'
+    Just v'' -> do
+      r <- iter f v''
       pure (v : r)
 
 run2 :: Schema -> String -> [Atom]
@@ -130,17 +112,18 @@ lex = words . concatMap fix
 
 parse :: String -> Word
 parse s@(x : _) | isUpper x = WVar s
-parse s@(x : _) = WPred s
+parse s@('?' : _) = WVar s
+parse s@(_ : _) = WPred s
 parse [] = error "empty word"
 
-sch :: Schema
-sch = fromJust . flip lookup
+sch1 :: Schema
+sch1 = fromJust . flip lookup
   [ ("on", 2), ("with", 2)
   , ("sees", 3)
   , ("cat", 1), ("shelf", 1), ("telescope", 1)
   ]
 
-test = run2 sch
+test = run2 sch1
 
 eg1 = "cat on shelf"
 eg1' = "on cat shelf"
@@ -148,6 +131,7 @@ eg2 = "cat on shelf shelf on cat"
 eg3 = "cat sees cat with telescope" -- surprising?
 eg5 = "cat cat cat cat"
 eg6 = "cat X X on Y"
+eg6' = "cat ?x ?x on Y"
 eg7 = "X cat on X Y"
 
 bad1 = "cat on" -- bad, incomplete
@@ -158,14 +142,44 @@ conf1 = "on on cat cat"  -- a cat is on something that is on a cat
 conf1' = "on cat on cat" -- a cat is on something that is on a cat
 conf2 = "X Y on" -- Y is on X
 
-tests = [eg1, eg1', eg2, eg3, eg5, eg6, eg7, conf1, conf2]
+tests = [eg1, eg1', eg2, eg3, eg5, eg6, eg6', eg7, conf1, conf1', conf2]
 
-ptest t =
+ptest t = do
+  let q = test t
   putStrLn $ show t
-  <> ":\n"
-  <> unlines (map show (test t))
+    <> ":\n"
+    <> unlines (map show q)
 
-chk = mapM_ ptest tests
+chk1 = mapM_ ptest tests
+
+toSchema :: [(Pred, Arity)] -> Schema
+toSchema m  k =
+  case flip lookup m k of
+    Just v -> v
+    Nothing -> error $ "undefined predicate: " <> k
+
+tst q db = (q', joins q'' db' [[]])
+  where
+    q' = run2 (toSchema arities) q
+    q'' = map toPattern $ q'
+    (arities, db') = parseDb db
+
+chk q = do
+  db <- readFile "db"
+  let (q', result) = tst q db
+  print q'
+  mapM_ print result
+
+main = do
+  putStrLn "example parses:"
+  chk1
+  putStrLn "example query:"
+  chk "cat saw X with Z"
+  mapM_ print $ unifyPattern (Pattern "f" [TermVar "X"])
+    [ Tuple "f" [LitSym "hi"]
+    , Tuple "f" [LitSym "there"]
+    , Tuple "g" [LitSym "nope"]
+    ]
 
 {-
 
@@ -174,5 +188,5 @@ chk = mapM_ ptest tests
 # Todo
   - parens
   - articles
-
 -}
+

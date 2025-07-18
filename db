@@ -1,0 +1,18 @@
+cat/1 on/2 shelf/1 saw/3 telescope/1 glasses/1 with/2
+
+cat Emmy
+cat Goose
+
+shelf S1
+shelf S2
+on Emmy S1
+on Goose S2
+
+saw Emmy Goose E1
+with E1 O1
+
+saw Goose Emmy E2
+with E2 O2
+
+telescope O2
+glasses O1
