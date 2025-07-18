@@ -8,6 +8,7 @@ main = do
   chk1
   putStrLn "example queries:"
   chk "cat saw X with Z"
+  chk "cat saw X"
   chk "(friend X) on Y"
 
 {-

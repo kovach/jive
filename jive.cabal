@@ -68,7 +68,7 @@ executable jive
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.21.0.0,
-                      mtl ^>=2.3.1,
+                      mtl ==2.2.2,
                       wai,
                       warp,
                       websockets,

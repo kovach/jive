@@ -16,8 +16,8 @@ toPattern (Atom p ts) = Pattern p ts
 
 type DB = [Tuple]
 
-unifyPattern :: Pattern -> DB -> [Binding]
-unifyPattern (Pattern p ts) tuples = mapMaybe ok tuples
+unifyPattern :: DB -> Pattern -> [Binding]
+unifyPattern db (Pattern p ts) = mapMaybe ok db
   where
     n = length ts
     ok (Tuple p' vs) =
@@ -36,7 +36,5 @@ bjoin b1 b2 = foldM step b1 $ toList b2
 bjoins :: [Binding] -> [Binding] -> [Binding]
 bjoins as bs = flip concatMap as (\a -> mapMaybe (bjoin a) bs)
 
-joins :: [Pattern] -> DB -> [Binding]
-joins ps db = foldl (\bs p -> bjoins (unifyPattern p db) bs)
-                    [emptyBinding]
-                    ps
+joins :: DB -> [Pattern] -> [Binding]
+joins db ps = foldl bjoins [emptyBinding] (map (unifyPattern db) ps)

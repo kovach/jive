@@ -1,5 +1,7 @@
 module Types where
 
+import Data.List ( intercalate )
+
 type Var = String
 type Pred = String
 type Sym = String
@@ -19,6 +21,7 @@ data Temp
   -- a partially applied atom with `Arity` missing arguments
   -- vars are in reverse order
   | TempAtom Pred [Var] Arity
+  | Temps [Temp]
   | Push | Pop
   deriving (Eq)
 
@@ -37,6 +40,7 @@ instance Show Atom where
 instance Show Temp where
   show (TempVar v) = v
   show (TempAtom p vs a) = pwrap (p <> " " <> unwords (map show (reverse vs))) <> "/" <> show a
+  show (Temps ts) = "[" <> intercalate " | " (map show ts) <> "]"
   show Push = "push"
   show Pop = "pop"
 
@@ -52,4 +56,6 @@ instance Show Binding where
     ["{"]
     <> map (\(k,v) -> "  " <> k <> ": " <> show v) bs
     <> ["}"]
+
+type Schema = Pred -> [Arity]
 
