@@ -40,3 +40,16 @@ instance Show Temp where
   show Push = "push"
   show Pop = "pop"
 
+data Pattern = Pattern Pred [Term]
+  deriving Show
+data Tuple = Tuple Pred [Literal]
+instance Show Tuple where
+  show (Tuple p ts) = p <> " " <> unwords (map show ts)
+newtype Binding = Binding [(Var, Literal)]
+
+instance Show Binding where
+  show (Binding bs) = unlines $
+    ["{"]
+    <> map (\(k,v) -> "  " <> k <> ": " <> show v) bs
+    <> ["}"]
+
