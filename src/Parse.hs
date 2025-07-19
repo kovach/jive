@@ -3,17 +3,15 @@ module Parse where
 import Prelude hiding (Word, lex)
 import Control.Monad.State
 import Control.Monad.Writer (WriterT, runWriterT, tell)
-import Control.Monad.List
-import Control.Monad.Identity
 import Data.Char
-import Data.Maybe
 
 import Types
 import Join
 import Util
 
 type M a = WriterT [Atom] (State Int) a
-type Ms a = WriterT [Atom] (StateT Int (ListT Identity)) a
+type Ms a = WriterT [Atom] (StateT Int []) a
+--type Ms a = WriterT [Atom] (StateT Int (ListT Identity)) a
 
 fresh' :: (MonadState Int m) => m Var
 fresh' = do
@@ -40,7 +38,8 @@ step :: St -> Ms St
 -- [nondeterminism in lexicon]
 --   We handle words that have multiple possible arities here.
 step (l, Temps ts : r) = do
-  t <- lift $ lift $ ListT (Identity ts)
+  --t <- lift $ lift $ ListT (Identity ts)
+  t <- lift $ lift $ ts
   pure (l, t : r)
 
 -- [paren handling]
@@ -97,7 +96,7 @@ wrap f x = do
   pure $ if x == x' then Nothing else Just x'
 
 run1 :: Schema -> [Word] -> [[Atom]]
-run1 s ws = map (snd . fst) $ runIdentity $ runListT $ flip runStateT 0 $ runWriterT $ do
+run1 s ws = map (snd . fst) $ flip runStateT 0 $ runWriterT $ do
     out <- iter (wrap step) ([], map (load s) ws)
     let out' = last out
     case out' of
